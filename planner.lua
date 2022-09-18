@@ -80,15 +80,6 @@ function planner.mergeInstructions(target, source)
     end
 end
 
-function planner.undoSteps(steps, inventoryState)
-    while not steps:empty() do
-        local step = steps:pop()
-        if step.action == "take" then
-            inventoryState[step.item] = inventoryState[step.item] + step.amount
-        end
-    end
-end
-
 function planner.computeSteps(itemOrTag, needAmount, inventoryState, recipeTreePath)
     if itemOrTag:sub(1, 4) == "tag:" then
         return planner.computeTagSteps(itemOrTag, needAmount, inventoryState, recipeTreePath)
@@ -107,27 +98,29 @@ function planner.computeTagSteps(tag, needAmount, inventoryState, recipeTreePath
 end
 
 function planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePath)
-    local origInStorage = inventoryState[item]
+    local inStorage = inventoryState:getAmount(item)
     local localInstructions = Stack()
     recipeTreePath = recipeTreePath or Set()
     recipeTreePath:add(item)
+    inventoryState:save()
 
     -- if the requested item is in storage
-    if origInStorage and origInStorage > 0 then
+    if inStorage and inStorage > 0 then
+        local takeAmount = math.min(needAmount, inStorage)
         -- push instruction to take that item from storage to instruction stack    
-        localInstructions:push({action = "take", item = item, amount = math.min(needAmount, origInStorage)})
+        localInstructions:push({action = "take", item = item, amount = takeAmount})
         -- subtract maximum possible amount from inventory
-        inventoryState[item] = math.max(0, origInStorage - needAmount)
+        inventoryState:take(item, takeAmount)
         -- subtract maximum possible amount from needed amount
-        needAmount = math.max(0, needAmount - origInStorage)
+        needAmount = math.max(0, needAmount - inStorage)
     end
 
-    -- if we still need some of that item but the requested item is not craftable
     if needAmount == 0 then
         recipeTreePath:remove(item)
         return localInstructions, true
     elseif needAmount > 0 and not recipes[item] then
-        inventoryState[item] = origInStorage
+        -- if we still need some of that item but the requested item is not craftable
+        inventoryState:restore()
         recipeTreePath:remove(item)
         return Stack(), false
     end
@@ -136,10 +129,12 @@ function planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePa
         local recipeInstructions = Stack()
         local needCraft = math.ceil(needAmount / recipe.quantity)
         local foundValid = true
+        inventoryState:save()
+
         for recipeItem, itemCount in pairs(planner.groupItems(recipe)) do
             if recipeTreePath:contains(recipeItem) then
                 -- recipe cycle detected, restore inventory state and go to the next recipe
-                planner.undoSteps(recipeInstructions, inventoryState)
+                inventoryState:restore()
                 foundValid = false
                 break
             end
@@ -149,7 +144,7 @@ function planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePa
                     planner.mergeInstructions(recipeInstructions, result)
                 else
                     -- if exploring this crafting tree failed, restore inventory state and go to the next recipe
-                    planner.undoSteps(recipeInstructions, inventoryState)
+                    inventoryState:restore()
                     foundValid = false
                     break
                 end
@@ -165,7 +160,7 @@ function planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePa
     end
     -- if we reach here that means we explored all possible recipes and haven't found a valid crafting tree
     -- revert the inventory state for current item
-    inventoryState[item] = origInStorage
+    inventoryState:restore()
     recipeTreePath:remove(item)
     return Stack(), false
 end

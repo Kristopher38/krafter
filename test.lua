@@ -1,6 +1,7 @@
 local planner = require("planner")
 local utils = require("utils")
 local inspect = require("inspect")
+local InventoryState = require("inventorystate")
 
 if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
     require("lldebugger").start()
@@ -9,35 +10,35 @@ end
 local tests = {
     {
         name = "Multilayer recipe",
-        inventory = {
+        inventory = InventoryState({
             ["item:minecraft:stone"] = 3,
             ["item:minecraft:redstone"] = 3,
             ["item:minecraft:ender_pearl"] = 1,
             ["item:minecraft:blaze_rod"] = 1,
             ["item:minecraft:gold_ingot"] = 3,
             ["item:minecraft:spruce_planks"] = 30,
-        },
+        }),
         toCraft = "item:storagedrawers:shroud_key",
         amount = 1,
         shouldSucceed = true
     },
     {
         name = "Basic test (dispenser)",
-        inventory = {
+        inventory = InventoryState({
             ["item:minecraft:stick"] = 3,
             ["item:minecraft:string"] = 5,
             ["item:minecraft:cobblestone"] = 32,
             ["item:minecraft:redstone"] = 14,
-        },
+        }),
         toCraft = "item:minecraft:dispenser",
         amount = 1,
         shouldSucceed = true
     },
     {
         name = "Cycle detection test",
-        inventory = {
+        inventory = InventoryState({
             ["item:minecraft:redstone"] = 4,
-        },
+        }),
         toCraft = "item:minecraft:target",
         amount = 1,
         shouldSucceed = false
