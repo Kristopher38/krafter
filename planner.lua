@@ -1,6 +1,7 @@
 local Stack = require("stack")
 local Set = require("set")
 local recipes = require("recipes-cc")
+local oredict = require("oredict")
 
 local planner = {}
 
@@ -88,10 +89,27 @@ function planner.undoSteps(steps, inventoryState)
     end
 end
 
-function planner.computeSteps(item, needAmount, inventoryState, recipeTreePath)
+function planner.computeSteps(itemOrTag, needAmount, inventoryState, recipeTreePath)
+    if itemOrTag:sub(1, 4) == "tag:" then
+        return planner.computeTagSteps(itemOrTag, needAmount, inventoryState, recipeTreePath)
+    else
+        return planner.computeItemSteps(itemOrTag, needAmount, inventoryState, recipeTreePath)
+    end
+end
+
+function planner.computeTagSteps(tag, needAmount, inventoryState, recipeTreePath)
+    for _, item in ipairs(oredict[tag]) do
+        local result, success = planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePath)
+        if success then
+            return result, success
+        end
+    end
+end
+
+function planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePath)
     local origInStorage = inventoryState[item]
     local localInstructions = Stack()
-    recipeTreePath = recipeTreePath or Set() -- make this a stack with the ability to check for membership quickly
+    recipeTreePath = recipeTreePath or Set()
     recipeTreePath:add(item)
 
     -- if the requested item is in storage

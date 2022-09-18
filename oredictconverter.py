@@ -24,7 +24,7 @@ def tab(indent, s):
 def parse_items(items, indent=0):
     luastring = ""
     for item in items:
-        luastring += tab(indent, "\"{item}\",\n".format(item=item))
+        luastring += tab(indent, "\"item:{item}\",\n".format(item=item))
     return luastring
 
 def parse_tags(oredict, indent=0):
