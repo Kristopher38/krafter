@@ -79,7 +79,7 @@ local function verify(test, steps)
 end
 
 for _, test in ipairs(tests) do
-    local steps, success = planner.computeSteps(test.toCraft, test.amount, utils.deepCopy(test.inventory))
+    local steps, success = planner.plan(test.toCraft, test.amount, utils.deepCopy(test.inventory))
     if success ~= test.shouldSucceed then
         error(string.format("Test \"%s\" failed - incorrect result (should/shouldn't succeed)", test.name))
     end

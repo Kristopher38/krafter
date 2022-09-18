@@ -24,6 +24,11 @@ function InventoryState:restore()
     end
 end
 
+function InventoryState:flush()
+    self.snapshots = Stack()
+    self.snapshots:push(Stack())
+end
+
 function InventoryState:getAmount(v)
     return self.items[v]
 end

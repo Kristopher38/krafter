@@ -165,4 +165,10 @@ function planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePa
     return Stack(), false
 end
 
+function planner.plan(item, needAmount, inventoryState, recipeTreePath)
+    local plan, success = planner.computeSteps(item, needAmount, inventoryState, recipeTreePath)
+    inventoryState:flush()
+    return plan, success
+end
+
 return planner
