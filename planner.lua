@@ -1,5 +1,5 @@
 local Stack = require("stack")
-local Set = require("set")
+local Multiset = require("multiset")
 local recipes = require("recipes-cc")
 local oredict = require("oredict")
 
@@ -80,28 +80,32 @@ function planner.mergeInstructions(target, source)
     end
 end
 
-function planner.computeSteps(itemOrTag, needAmount, inventoryState, recipeTreePath)
+function planner.computeSteps(itemOrTag, needAmount, inventoryState, itemBlacklist)
     if itemOrTag:sub(1, 4) == "tag:" then
-        return planner.computeTagSteps(itemOrTag, needAmount, inventoryState, recipeTreePath)
+        return planner.computeTagSteps(itemOrTag, needAmount, inventoryState, itemBlacklist)
     else
-        return planner.computeItemSteps(itemOrTag, needAmount, inventoryState, recipeTreePath)
+        return planner.computeItemSteps(itemOrTag, needAmount, inventoryState, itemBlacklist)
     end
 end
 
-function planner.computeTagSteps(tag, needAmount, inventoryState, recipeTreePath)
+function planner.computeTagSteps(tag, needAmount, inventoryState, itemBlacklist)
     for _, item in ipairs(oredict[tag]) do
-        local result, success = planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePath)
+        local result, success = planner.computeItemSteps(item, needAmount, inventoryState, itemBlacklist)
         if success then
             return result, success
         end
     end
 end
 
-function planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePath)
+function planner.computeItemSteps(item, needAmount, inventoryState, itemBlacklist)
     local inStorage = inventoryState:getAmount(item)
     local localInstructions = Stack()
-    recipeTreePath = recipeTreePath or Set()
-    recipeTreePath:add(item)
+    itemBlacklist = itemBlacklist or Multiset()
+    if itemBlacklist:contains(item) then
+        -- recipe cycle or disallowed item detected
+        return Stack(), false
+    end
+    itemBlacklist:add(item)
     inventoryState:save()
 
     -- if the requested item is in storage
@@ -116,12 +120,12 @@ function planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePa
     end
 
     if needAmount == 0 then
-        recipeTreePath:remove(item)
+        itemBlacklist:remove(item)
         return localInstructions, true
     elseif needAmount > 0 and not recipes[item] then
         -- if we still need some of that item but the requested item is not craftable
         inventoryState:restore()
-        recipeTreePath:remove(item)
+        itemBlacklist:remove(item)
         return Stack(), false
     end
 
@@ -132,14 +136,8 @@ function planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePa
         inventoryState:save()
 
         for recipeItem, itemCount in pairs(planner.groupItems(recipe)) do
-            if recipeTreePath:contains(recipeItem) then
-                -- recipe cycle detected, restore inventory state and go to the next recipe
-                inventoryState:restore()
-                foundValid = false
-                break
-            end
             if recipeItem ~= recipes.nullItem then
-                local result, success = planner.computeSteps(recipeItem, needCraft * itemCount, inventoryState, recipeTreePath)
+                local result, success = planner.computeSteps(recipeItem, needCraft * itemCount, inventoryState, itemBlacklist)
                 if success then
                     planner.mergeInstructions(recipeInstructions, result)
                 else
@@ -154,19 +152,19 @@ function planner.computeItemSteps(item, needAmount, inventoryState, recipeTreePa
             -- if we reach here that means we have valid (as in - the crafting tree was explored successfully) recipe instructions
             localInstructions:push({action = "craft", item = item, amount = needCraft, recipe = recipe})
             planner.mergeInstructions(localInstructions, recipeInstructions)
-            recipeTreePath:remove(item)
+            itemBlacklist:remove(item)
             return localInstructions, true
         end
     end
     -- if we reach here that means we explored all possible recipes and haven't found a valid crafting tree
     -- revert the inventory state for current item
     inventoryState:restore()
-    recipeTreePath:remove(item)
+    itemBlacklist:remove(item)
     return Stack(), false
 end
 
-function planner.plan(item, needAmount, inventoryState, recipeTreePath)
-    local plan, success = planner.computeSteps(item, needAmount, inventoryState, recipeTreePath)
+function planner.plan(item, needAmount, inventoryState, itemBlacklist)
+    local plan, success = planner.computeSteps(item, needAmount, inventoryState, itemBlacklist)
     inventoryState:flush()
     return plan, success
 end
