@@ -2,6 +2,7 @@ local Stack = require("stack")
 local Multiset = require("multiset")
 local recipes = require("recipes-cc")
 local oredict = require("oredict")
+local InventoryState = require("inventorystate")
 
 local planner = {}
 
@@ -164,9 +165,7 @@ function planner.computeItemSteps(item, needAmount, inventoryState, itemBlacklis
 end
 
 function planner.plan(item, needAmount, inventoryState, itemBlacklist)
-    local plan, success = planner.computeSteps(item, needAmount, inventoryState, itemBlacklist)
-    inventoryState:flush()
-    return plan, success
+    return planner.computeSteps(item, needAmount, InventoryState(inventoryState), itemBlacklist)
 end
 
 return planner
