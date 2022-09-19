@@ -6,65 +6,6 @@ local InventoryState = require("inventorystate")
 
 local planner = {}
 
--- function planner.computeSteps(goalItemName, goalItemAmount, inventoryState)
---     local itemStack = Stack()
---     local recipeStack = Stack()
---     local inventoryStateStack = Stack()
---     local instructionStack = Stack()
---     local visitedRecipes = {}
-
---     itemStack:push({goalItemName, goalItemAmount})
---     while not itemStack:empty() do
---         ::continue::
---         local item, needAmount = table.unpack(itemStack:pop())
---         local inStorage = inventoryState[item]
-
---         -- save inventory state before doing anything
---         inventoryStateStack:push(inStorage)
-        
---         local instructionPushed = false
---         -- if the requested item is in storage
---         if inStorage and inStorage > 0 then
---             -- push instruction to take that item from storage to instruction stack    
---             instructionStack:push({"take_from_storage", item, math.min(needAmount, inStorage)})
---             instructionPushed = true
---             -- subtract maximum possible amount from inventory
---             inventoryState[item] = math.max(0, inStorage - needAmount)
---             -- subtract maximum possible amount from needed amount
---             needAmount = math.max(0, needAmount - inStorage)
---             inStorage = inventoryState[item]
---         end
-
---         -- if we still need some of that item but the requested item is not craftable
---         if needAmount > 0 and not recipes[item] then
---             -- that means we need to backtrack because we are at the end of a graph
---             inventoryState[item] = inventoryStateStack:pop()
---             if instructionPushed then
---                 instructionStack:pop()
---             end
---             goto continue
---         end
-
---         while needAmount > 0 do
---             -- push all possible recipes onto the recipe stack
---             for i, recipe in ipairs(recipes[item]) do
---                 recipeStack:push(recipe)
---             end
-
---             -- if there are any recipes
---             if not recipeStack:empty() then
---                 local currentRecipe = recipeStack:pop()
---                 visitedRecipes[currentRecipe] = true
---                 for i, recipeItem in ipairs(currentRecipe) do
---                     itemStack:push({recipeItem, currentRecipe.quantity})
---                 end
---             else
-
---             end
---         end
---     end
--- end
-
 function planner.groupItems(recipe)
     local items = {}
     for i, item in ipairs(recipe) do
